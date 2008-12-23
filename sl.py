@@ -73,7 +73,7 @@ class Checker(Thread):
 			urlparts = urlparse(urllib2.urlopen(self._urls["domain"]).url)
 			self._urls["domain"] = "%s://%s" % (urlparts.scheme, 
 				urlparts.hostname)
-		except urllib2.URLError:
+		except urllib2.URLError, e:
 			self._events += [("Error", e, "")]
 			return False
 
