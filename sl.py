@@ -74,7 +74,7 @@ class Checker(Thread):
 			self._urls["domain"] = "%s://%s" % (urlparts.scheme, 
 				urlparts.hostname)
 		except urllib2.URLError, e:
-			self._events += [("Error", e, "")]
+			self._events += [("Error", str(e), "")]
 			return False
 
 		# push credentials into login form fields
@@ -98,7 +98,7 @@ class Checker(Thread):
 		try:
 			self._get("login", "friends", fields)
 		except Exception, e:
-			self._events += [("Error", e, "")]
+			self._events += [("Error", str(e), "")]
 			return False
 		else:
 			return True
@@ -170,7 +170,7 @@ class Checker(Thread):
 			try:
 				sales = self._sales()
 			except Exception, e:
-				self._events += [("Error", e, "")]
+				self._events += [("Error", str(e), "")]
 				sales = {}
 			if first:
 				self._events += [("System", "Getting friends", "")]
@@ -184,7 +184,7 @@ class Checker(Thread):
 			try:
 				friends = self._friends()
 			except Exception, e:
-				self._events += [("Error", e, "")]
+				self._events += [("Error", str(e), "")]
 			else:
 				for friend in friends:
 					if friend not in self.friends:
