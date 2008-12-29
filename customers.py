@@ -3,8 +3,9 @@ from os.path import dirname, join as pathjoin
 from os import startfile
 from tools import Pdict
 
-csv = pathjoin(dirname(__file__), "customers.csv")
-sales = Pdict(pathjoin(dirname(__file__), "sales"))
+path = lambda f: pathjoin(dirname(__file__), f)
+csv = path("customers.csv")
+sales = Pdict(path("sales"))
 customers = set([sale["name"] for sale in sales.values()])
 
 try:
