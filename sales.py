@@ -42,9 +42,17 @@ def total(data, index):
 	return sum(v[index] for v in data.values())
 
 
+def sort(x, y):
+	if x[1][0] == y[1][0]:
+		i = 1
+	else:
+		i = 0
+	return cmp(x[1][i], y[1][i])
+
+
 for label, field in (("Location", "location"), ("Product", "item"), ("Customer", "name")):
 	grouped = groupby(sales, field)
-	grouped.sort(cmp=lambda x, y: cmp(x[1][1], y[1][1]), reverse=True)
+	grouped.sort(cmp=sort, reverse=True)
 	print
 	print header("By %s" % label, "Sales", "Qty")
 	for name, totals in grouped.items():
