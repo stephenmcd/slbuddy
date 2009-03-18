@@ -49,14 +49,14 @@ class Pdict(dict):
 	"""file persisted dictionary"""
 	
 	def __init__(self, path):
-		self._path = path
 		try:
-			f = open(self._path, "rb")
+			f = open(path, "rb")
 		except IOError:
 			pass
 		else:
 			self.update(load(f))
 			f.close()
+		self._path = path
 	
 	def save(self):
 		try:
@@ -74,13 +74,15 @@ class Events(object):
 	_topics = {}
 		
 	@staticmethod
-	def subscribe(topic, subscriber):
+	def subscribe(topic, subscriber, bubble=True):
 		topics = Events._topics.get(topic, [])
-		topics.append(subscriber)
+		topics.append((subscriber, bubble))
 		Events._topics[topic] = topics
 		
 	@staticmethod
 	def publish(topic, data=None):
-		for subscriber in Events._topics.get(topic, []):
+		for subscriber, bubble in Events._topics.get(topic, []):
 			subscriber(data)
+			if not bubble:
+				break
 
