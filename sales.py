@@ -7,7 +7,7 @@ from tools import Pdict, Odict
 setlocale(LC_ALL, "")
 sales = Pdict(pathjoin(dirname(__file__), "sales"))
 paddings = [max([max([len(sale["name"]), len(sale["item"]), 
-	len(sale["location"])]) for sale in sales.values()]), 10, 5]
+	len(sale["location"])]) for sale in sales.values()]), 10, 6]
 
 
 def groupby(data, field):
