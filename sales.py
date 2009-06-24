@@ -31,7 +31,8 @@ def get_field(record, field):
 def groupby(data, field):
 	grouped = Odict()
 	for record in data.values():
-		if int(record["amount"]) > 0:
+		if int(record["amount"]) > 0 and ("/" not in args[0] or 
+			args[0] == get_field(record, "month")):
 			value = get_field(record, field)
 			current = grouped.get(value, (0, 0))
 			grouped[value] = (current[0] + int(record["amount"]), current[1] + 1)
@@ -69,9 +70,11 @@ def sort(x, y):
 
 if __name__ == "__main__":
 	for label, field in (("Location", "location"), ("Month", "month"), ("Product", "item"), ("Customer", "name")):
-		if label in args or args[0] == "all":
+		if label in args or args[0] == "all" or ("/" in args[0] and label  not in ("Month", "Customer")):
 			grouped = groupby(sales, field)
 			grouped.sort(cmp=sort if field != "month" else cmp, reverse=True)
+			if "/" in args[0]:
+				label += " for %s" % args[0]
 			print
 			print header("By %s" % label, "Sales", "Qty")
 			for name, totals in grouped.items():
