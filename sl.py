@@ -1,3 +1,4 @@
+#! /usr/bin/env python
 
 import urllib2, os.path
 from urlparse import urlparse
@@ -5,7 +6,7 @@ from sys import argv
 from urllib import urlencode
 from cookielib import CookieJar
 from threading import Thread
-from time import sleep, strftime
+from time import sleep, time, strftime
 from getpass import getpass
 from BeautifulSoup import BeautifulSoup
 from tools import Pdict
@@ -19,10 +20,10 @@ urllib2.install_opener(opener)
 
 
 _urls = {
-	"domain": "http://secondlife.com/account",
-	"login": "/account/login.php?lang=en",
-	"friends": "/account/friends.php?lang=en",
-	"sales": "/account/transactions.php?lang=en",}
+	"domain": "http://secondlife.com/my/account",
+	"login": "/my/account/login.php?lang=en",
+	"friends": "/my/account/friends.php?lang=en",
+	"sales": "/my/account/transactions.php?lang=en",}
 
 
 class Checker(Thread):
@@ -36,6 +37,8 @@ class Checker(Thread):
 		self._args = args
 		self._events = []
 		self._urls = _urls
+		self._running = True
+		self._time = time()
 		self.friends = {}
 		self.sales = Pdict(os.path.join(os.path.dirname(__file__), "sales"))
 		self.interval = 15
@@ -67,15 +70,19 @@ class Checker(Thread):
 
 	def _login(self):
 		
-		# update the domain with the random secure server address
 		self._events += [("System", "Connecting to secure server", "")]
 		try:
-			urlparts = urlparse(urllib2.urlopen(self._urls["domain"]).url)
-			self._urls["domain"] = "%s://%s" % (urlparts.scheme, 
-				urlparts.hostname)
+			response = urllib2.urlopen(self._urls["domain"])
 		except urllib2.URLError, e:
 			self._events += [("Error", str(e), "")]
 			return False
+
+		# update the domain with the random secure server address
+		# and retrieve the csrf token
+		urlparts = urlparse(response.url)
+		self._urls["domain"] = "%s://%s" % (urlparts.scheme, urlparts.hostname)
+		csrf = BeautifulSoup(response.read())(
+			attrs={"name": "CSRFToken"})[0]["value"]
 
 		# push credentials into login form fields
 		names = (
@@ -86,7 +93,7 @@ class Checker(Thread):
 			if i + 1 > len(self._args) or not self._args[i]:
 				self._args.append(name[1](name[0]))
 		fields = {
-			"form[type]": "second-life-member",
+			"CSRFToken": csrf, "form[type]": "second-life-member",
 			"form[nextpage]": self._urls["friends"].split("?")[0],
 			"form[persistent]": "Y", "form[form_action]": "Log In",
 			"form[form_lang]": "en", "submit": "Submit"}
@@ -105,10 +112,6 @@ class Checker(Thread):
 
 	def _friends(self):
 		"""parse friends list from friends page"""
-		
-		#dict([(line.a.string, line.a["href"].split("/")[2])
-		#if line.a else (line.string, "") for line in html("td") 
-		#if line.get("headers", "") == "avatar-name"]),
 
 		friends = {}
 		for li in self._get("friends")("li"):
@@ -137,34 +140,50 @@ class Checker(Thread):
 		# get sales
 		html = self._get(self._urls["sales"] + "&" + urlencode(dates))
 		sales = {}
-		for tr in html("tr", attrs={"bgcolor":"#FFFFFF"}):
+
+		for tr in html("tr"):
 			if ("Object Sale" in str(tr) and not 
 				str(tr).split("Destination:")[0].strip().endswith("<td>")):
+				indexes = [1, 3, 5, 6, 7, 9]
+				no_location = len(tr("td")) == 10
+				if no_location:
+					indexes = [1, 3, 5, 6, 8]
 				sale = []
 				for i, td in enumerate(tr("td")):
-					if td.string.strip() and i in [1, 3, 5, 6, 7, 9]:
+					if td.string.strip() and i in indexes:
 						for part in reversed((td.string.strip() + 
 							":").split(":", 1)):
-							part = part.strip().strip(":")
+							part = part.replace("&quot;", "").replace(
+								"&nbsp;", " ").strip(":\n\r\t ")
 							if part:
-								sale.append(part.replace("&quot;", ""))
+								sale.append(part)
 								break
-				sale[-1] = int("".join([c for c in sale[-1] if c.isdigit()]))
-				id = sale.pop(0)
-				if id not in self.sales:
-					sales[id] = dict(zip(["date", "item", "location", 
-						"name", "amount"], sale))
+				if sale:
+					sale[-1] = int("".join([c for c in sale[-1] if c.isdigit()]))
+					id = sale.pop(0)
+					if id not in self.sales:
+						if no_location:
+							sale.insert(2, "UNKNOWN")
+						sales[id] = dict(zip(["date", "item", "location", 
+							"name", "amount"], sale))
 		return sales
 			
 	def run(self):
-		"""pull friend updates and new sales from account pages 
-		and push to events list"""
+		"""
+		pull friend updates and new sales from account pages 
+		and push to events list
+		"""
 		
 		if not self._login():
 			return
 		first = True
-		while True:
-
+		while self._running:
+		
+			if time() - self._time < self.interval:
+				sleep(.1)
+				continue
+			self._time = time()
+			
 			if first:
 				self._events += [("System", "Getting sales", "")]
 			try:
@@ -205,7 +224,11 @@ class Checker(Thread):
 				self.friends = friends
 
 			first = False
-			sleep(self.interval)
+	
+	def quit(self):
+		self._running = False
+		self.join()
+
 
 	def __iter__(self):
 		"""yield and remove events"""
@@ -228,4 +251,6 @@ if __name__ == "__main__":
 				break
 		except KeyboardInterrupt, SystemExit:
 			break
-	raw_input("Press enter to quit")
+	print "quiting..."
+	checker.quit()
+
