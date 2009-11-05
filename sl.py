@@ -146,13 +146,16 @@ class Checker(Thread):
 			if ("<em>Object Sale&nbsp;</em>" not in str(row) or 
 				str(row).split("Destination:")[0].strip().endswith("<td>")):
 				continue
+			id = row("span", {"class": "trans-uuid"})[0]["title"]
+			if id in self.sales:
+				continue
 			cells = row("td")
-			sales[row("span", {"class": "trans-uuid"})[0]["title"]] = {
+			sales[id] = {
 				"date": "%s %s" % (cells[0].string, cells[1].string),
 				"name": clean(cells[3]("strong")[0], " "),
 				"location": clean(cells[3]("em")[1], ":"),
 				"item": clean(cells[3]("em")[2], ":"),
-				"amount": clean(cells[5], "L$").replace(",", ""),}
+				"amount": int(clean(cells[5], "L$").replace(",", "")),}
 		return sales
 			
 	def run(self):

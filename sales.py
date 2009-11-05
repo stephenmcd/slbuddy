@@ -1,7 +1,7 @@
 #! /usr/bin/python
 
 import sys
-from os.path import dirname, join as pathjoin
+from os.path import dirname, exists, join as pathjoin
 from locale import setlocale, LC_ALL, format
 from tools import Pdict, Odict
 
@@ -13,8 +13,29 @@ setlocale(LC_ALL, "")
 sales = Pdict(pathjoin(dirname(__file__), "sales"))
 paddings = [max([max([len(sale["name"]), len(sale["item"]), 
 	len(sale["location"])]) for sale in sales.values()]), 10, 6]
-	
-	
+
+
+def cleanup():
+	# perform one-time clean up of sales data corrupted by 
+	# Linden Lab's change from 10 char IDs to 36 char IDs with
+	# no defined way of comparing a sale that was recorded twice
+	# with each type of id
+	cleaned_file = pathjoin(dirname(__file__), "ll_id_change_cleaned")
+	if exists(cleaned_file):
+		return
+	f = open(cleaned_file, "w")
+	f.write("done")
+	f.close()
+	sale_str = "%(date)s%(name)s%(item)s"
+	new_values = [sale_str % v for k, v in sales.items() if len(k) == 36]
+	if len(new_values) == len(sales):
+		return
+	duplicate_keys = [k for k, v in sales.items() 
+		if len(k) == 10 and sale_str % v in new_values]
+	for k in duplicate_keys:
+		del sales[k]
+	sales.save()
+
 def get_field(record, field):
 	if field == "month":
 		date = (record["date"] + " ").split(" ")[0]
@@ -70,6 +91,7 @@ def sort(x, y):
 	return cmp(x[1][i], y[1][i])
 
 if __name__ == "__main__":
+	cleanup()
 	for label, field in (("Location", "location"), ("Month", "month"), ("Product", "item"), ("Customer", "name")):
 		if label in args or args[0] == "all" or ("/" in args[0] and label not in ("Month", "Customer")):
 			grouped = groupby(sales, field)
