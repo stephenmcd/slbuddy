@@ -140,32 +140,19 @@ class Checker(Thread):
 		# get sales
 		html = self._get(self._urls["sales"] + "&" + urlencode(dates))
 		sales = {}
-
-		for tr in html("tr"):
-			if ("Object Sale" in str(tr) and not 
-				str(tr).split("Destination:")[0].strip().endswith("<td>")):
-				indexes = [1, 3, 5, 6, 7, 9]
-				no_location = len(tr("td")) == 10
-				if no_location:
-					indexes = [1, 3, 5, 6, 8]
-				sale = []
-				for i, td in enumerate(tr("td")):
-					if td.string.strip() and i in indexes:
-						for part in reversed((td.string.strip() + 
-							":").split(":", 1)):
-							part = part.replace("&quot;", "").replace(
-								"&nbsp;", " ").strip(":\n\r\t ")
-							if part:
-								sale.append(part)
-								break
-				if sale:
-					sale[-1] = int("".join([c for c in sale[-1] if c.isdigit()]))
-					id = sale.pop(0)
-					if id not in self.sales:
-						if no_location:
-							sale.insert(2, "UNKNOWN")
-						sales[id] = dict(zip(["date", "item", "location", 
-							"name", "amount"], sale))
+		clean = lambda node, after: node.string.split(after, 1)[1].replace(
+			"&quot;", "").replace("&nbsp;", " ").strip(":\n\r\t ")
+		for row in html("tr"):
+			if ("<em>Object Sale&nbsp;</em>" not in str(row) or 
+				str(row).split("Destination:")[0].strip().endswith("<td>")):
+				continue
+			cells = row("td")
+			sales[row("span", {"class": "trans-uuid"})[0]["title"]] = {
+				"date": "%s %s" % (cells[0].string, cells[1].string),
+				"name": clean(cells[3]("strong")[0], " "),
+				"location": clean(cells[3]("em")[1], ":"),
+				"item": clean(cells[3]("em")[2], ":"),
+				"amount": clean(cells[5], "L$").replace(",", ""),}
 		return sales
 			
 	def run(self):
