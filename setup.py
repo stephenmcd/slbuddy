@@ -42,19 +42,19 @@ class Py2exe(py2exe):
                     
 setup(
 
-	#cmdclass = {'py2exe': Py2exe},
+    #cmdclass = {'py2exe': Py2exe},
 
-	options = {
-		"py2exe": {"optimize": 2, "bundle_files": 1, "dist_dir": output}
-	},
-	
-	windows = [{
-		"script": "slbuddy.py", "icon_resources": [(1, "sl.ico")]
-	}]
-	
-	,zipfile = None
-	
+    options = {
+        "py2exe": {"optimize": 2, "bundle_files": 1, "dist_dir": output}
+    },
+    
+    windows = [{
+        "script": "slbuddy.py", "icon_resources": [(1, "sl.ico")]
+    }]
+    
+    ,zipfile = None
+    
 )
 
 for exclude in excludes:
-	os.remove(os.path.join(os.path.dirname(__file__), output, exclude))
+    os.remove(os.path.join(os.path.dirname(__file__), output, exclude))
